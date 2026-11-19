@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小红书视频下载器</title>
+<style>
+  :root {
+    --red: #ff2442;
+    --red-dark: #e01e3a;
+    --red-soft: #fff1f3;
+    --text: #1f1f1f;
+    --text-2: #666;
+    --text-3: #999;
+    --line: #ebebeb;
+    --bg: #fff;
+    --bg-soft: #fafafa;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --err: #dc2626;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg-soft); color: var(--text); font-size: 13px;
+    line-height: 1.6; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 12px 20px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .logo { width: 26px; height: 26px; border-radius: 7px; background: var(--red);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 17px; height: 17px; display: block; }
+  header h1 { font-size: 15px; font-weight: 600; }
+  header .tag { font-size: 11px; color: var(--text-3); border: 1px solid var(--line);
+    padding: 1px 7px; border-radius: 20px; }
+  header .spacer { flex: 1; }
+  .status-pill { font-size: 12px; padding: 3px 10px; border-radius: 20px;
+    background: var(--bg-soft); color: var(--text-2); border: 1px solid var(--line); }
+  .status-pill.run { background: var(--red-soft); color: var(--red); border-color: #ffd4db; }
+  .status-pill.ok { background: #f0fdf4; color: var(--ok); border-color: #bbf7d0; }
+  .status-pill.err { background: #fef2f2; color: var(--err); border-color: #fecaca; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  .panel { background: var(--bg); border-right: 1px solid var(--line);
+    width: 400px; flex-shrink: 0; display: flex; flex-direction: column; }
+  .panel-scroll { overflow-y: auto; padding: 18px 20px 20px; flex: 1; }
+
+  .tabs { display: flex; gap: 6px; background: var(--bg-soft); padding: 4px;
+    border-radius: 8px; margin-bottom: 18px; }
+  .tabs button { flex: 1; border: 0; background: transparent; padding: 7px 0;
+    border-radius: 6px; font-size: 13px; color: var(--text-2); cursor: pointer;
+    font-family: inherit; transition: .15s; }
+  .tabs button.active { background: var(--bg); color: var(--red); font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+
+  .field { margin-bottom: 15px; }
+  .field label { display: block; font-size: 12px; color: var(--text-2);
+    margin-bottom: 6px; font-weight: 500; }
+  .field .hint { font-size: 11px; color: var(--text-3); margin-top: 5px; line-height: 1.5; }
+  input[type=text], input[type=password], input[type=number], select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg);
+    transition: .15s; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+  input::placeholder { color: #bbb; }
+
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .path-box { display: flex; gap: 8px; }
+  .path-box input { flex: 1; }
+  .btn-sm { padding: 9px 14px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); cursor: pointer; font-size: 13px; font-family: inherit;
+    color: var(--text-2); white-space: nowrap; transition: .15s; }
+  .btn-sm:hover { border-color: var(--red); color: var(--red); }
+
+  .check { display: flex; align-items: center; gap: 7px; font-size: 12px;
+    color: var(--text-2); cursor: pointer; user-select: none; }
+  .check input { accent-color: var(--red); width: 14px; height: 14px; cursor: pointer; }
+
+  details.adv { margin-top: 4px; border-top: 1px dashed var(--line); padding-top: 12px; }
+  details.adv summary { font-size: 12px; color: var(--text-2); cursor: pointer;
+    list-style: none; display: flex; align-items: center; gap: 5px; user-select: none; }
+  details.adv summary::-webkit-details-marker { display: none; }
+  details.adv summary::before { content: "▸"; color: var(--text-3); transition: .15s; }
+  details.adv[open] summary::before { transform: rotate(90deg); }
+  details.adv .adv-body { padding-top: 13px; }
+
+  .actions { padding: 14px 20px; border-top: 1px solid var(--line);
+    display: flex; gap: 10px; background: var(--bg); flex-shrink: 0; }
+  .btn-main { flex: 1; padding: 11px; border: 0; border-radius: 8px;
+    background: var(--red); color: #fff; font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: .15s; }
+  .btn-main:hover:not(:disabled) { background: var(--red-dark); }
+  .btn-main:disabled { background: #f0c4cb; cursor: not-allowed; }
+  .btn-ghost { padding: 11px 18px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--text-2); font-size: 13px; font-family: inherit;
+    cursor: pointer; transition: .15s; }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+  .btn-ghost:disabled { color: #ccc; cursor: not-allowed; }
+
+  .right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .progress-wrap { padding: 14px 20px 10px; background: var(--bg);
+    border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .progress-top { display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px; }
+  .progress-detail { font-size: 12px; color: var(--text-2); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .progress-pct { font-size: 12px; color: var(--red); font-weight: 600;
+    flex-shrink: 0; margin-left: 12px; }
+  .bar { height: 6px; background: #f2f2f2; border-radius: 3px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--red); border-radius: 3px;
+    transition: width .3s ease; }
+
+  .log-head { padding: 10px 20px 8px; display: flex; align-items: center;
+    gap: 10px; flex-shrink: 0; }
+  .log-head h2 { font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .log-head .spacer { flex: 1; }
+  .log-head button { border: 0; background: transparent; color: var(--text-3);
+    font-size: 12px; cursor: pointer; font-family: inherit; }
+  .log-head button:hover { color: var(--red); }
+  .log { flex: 1; overflow-y: auto; padding: 0 20px 18px;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 12px; line-height: 1.75; min-height: 0; }
+  .log .line { display: flex; gap: 9px; padding: 1px 0; word-break: break-all; }
+  .log .t { color: #c4c4c4; flex-shrink: 0; }
+  .log .m { flex: 1; }
+  .log .INFO .m { color: var(--text); }
+  .log .WARNING .m { color: var(--warn); }
+  .log .ERROR .m { color: var(--err); }
+  .log .DEBUG .m { color: var(--text-3); }
+  .log .empty { color: var(--text-3); padding: 20px 0; text-align: center;
+    font-family: inherit; }
+
+  /* 二维码弹层 */
+  .modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,.45);
+    display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-mask.show { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 26px 28px; text-align: center;
+    width: 300px; box-shadow: 0 12px 40px rgba(0,0,0,.18); }
+  .modal h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .modal p { font-size: 12px; color: var(--text-3); margin-bottom: 16px; }
+  .modal img { width: 220px; height: 220px; border: 1px solid var(--line);
+    border-radius: 8px; display: block; margin: 0 auto; background: #fafafa;
+    image-rendering: pixelated; }
+  .modal .wait { font-size: 12px; color: var(--text-2); margin-top: 14px; }
+  .modal .wait b { color: var(--red); }
+
+  .toast { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: #333; color: #fff; padding: 9px 18px; border-radius: 20px; font-size: 12px;
+    opacity: 0; transition: .25s; pointer-events: none; z-index: 200; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .filter-group { display: flex; gap: 6px; }
+  .filter-group button { border: 1px solid var(--line); background: var(--bg);
+    color: var(--text-2); font-size: 11px; padding: 3px 9px; border-radius: 20px;
+    cursor: pointer; font-family: inherit; }
+  .filter-group button.active { background: var(--red-soft); color: var(--red);
+    border-color: #ffd4db; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 14 L50 42" stroke="#fff" stroke-width="13" stroke-linecap="round" fill="none"/>
+      <path d="M27 38 L73 38 L50 66 Z" fill="#fff"/>
+      <path d="M24 66 L24 84 L76 84 L76 66" stroke="#fff" stroke-width="13"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+  <h1>小红书视频下载器</h1>
+  <span class="tag">无水印原片</span>
+  <div class="spacer"></div>
+  <span class="status-pill" id="status">就绪</span>
+</header>
+
+<main>
+  <div class="panel">
+    <div class="panel-scroll">
+      <div class="tabs">
+        <button id="tab-account" class="active" onclick="switchTab('account')">账号批量</button>
+        <button id="tab-single" onclick="switchTab('single')">单条视频</button>
+      </div>
+
+      <div class="field">
+        <label id="url-label">账号主页链接</label>
+        <input type="text" id="url" placeholder="粘贴主页链接 / 用户ID / App分享短链">
+        <div class="hint" id="url-hint">支持：主页链接、24 位用户 ID、App 分享短链</div>
+      </div>
+
+      <div class="field">
+        <label>保存目录</label>
+        <div class="path-box">
+          <input type="text" id="out">
+          <button class="btn-sm" onclick="pickFolder()">浏览…</button>
+          <button class="btn-sm" onclick="openOutFolder()">打开</button>
+        </div>
+      </div>
+
+      <div class="field" id="listonly-field">
+        <label class="check">
+          <input type="checkbox" id="list_only">
+          <span>仅列出视频清单，不下载</span>
+        </label>
+      </div>
+
+      <details class="adv">
+        <summary>高级设置</summary>
+        <div class="adv-body">
+          <div class="row" style="margin-bottom:15px">
+            <div class="field" style="margin:0">
+              <label>下载并发</label>
+              <input type="number" id="concurrency" value="2" min="1" max="8">
+            </div>
+            <div class="field" style="margin:0">
+              <label>页面间隔（秒）</label>
+              <input type="number" id="delay" value="1.5" step="0.5" min="0" max="20">
+            </div>
+          </div>
+          <div class="row" style="margin-bottom:15px">
+            <div class="field" style="margin:0">
+              <label>下载重试次数</label>
+              <input type="number" id="retries" value="3" min="1" max="10">
+            </div>
+            <div class="field" style="margin:0">
+              <label>登录等待（秒）</label>
+              <input type="number" id="login_timeout" value="300" min="60" max="1800" step="30">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:15px">
+            <label>Cookie 注入（可选，跳过扫码）</label>
+            <input type="text" id="cookie" placeholder="web_session=xxx; a1=yyy">
+          </div>
+          <div class="field" style="margin:0">
+            <label>浏览器内核</label>
+            <div class="hint" id="channel-hint">检测中…</div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="actions">
+      <button class="btn-main" id="btn-start" onclick="startJob()">开始下载</button>
+      <button class="btn-ghost" id="btn-login" onclick="loginOnly()">仅登录</button>
+      <button class="btn-ghost" id="btn-cancel" onclick="cancelJob()" disabled>取消</button>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="progress-wrap">
+      <div class="progress-top">
+        <span class="progress-detail" id="progress-detail">等待开始</span>
+        <span class="progress-pct" id="progress-pct">0%</span>
+      </div>
+      <div class="bar"><div id="progress-bar"></div></div>
+    </div>
+
+    <div class="log-head">
+      <h2>运行日志</h2>
+      <div class="filter-group">
+        <button class="active" data-level="all" onclick="setFilter(this,'all')">全部</button>
+        <button data-level="WARNING" onclick="setFilter(this,'WARNING')">警告</button>
+        <button data-level="ERROR" onclick="setFilter(this,'ERROR')">错误</button>
+      </div>
+      <div class="spacer"></div>
+      <button onclick="clearLog()">清空</button>
+    </div>
+    <div class="log" id="log">
+      <div class="empty">日志将在这里实时显示</div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-mask" id="qr-mask">
+  <div class="modal">
+    <h3>扫码登录</h3>
+    <p>请用小红书 App 扫描二维码</p>
+    <img id="qr-img" alt="登录二维码">
+    <div class="wait" id="qr-wait">等待扫码…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentMode = 'account';
+let env = {};
+let logFilter = 'all';
+let running = false;
+let lastAction = 'start';
+
+function $(id) { return document.getElementById(id); }
+
+function switchTab(mode) {
+  currentMode = mode;
+  $('tab-account').classList.toggle('active', mode === 'account');
+  $('tab-single').classList.toggle('active', mode === 'single');
+  if (mode === 'single') {
+    $('url-label').textContent = '笔记链接';
+    $('url').placeholder = '粘贴单条笔记链接（含 xsec_token）';
+    $('url-hint').textContent = '从 App 分享单条笔记复制的链接，需包含 xsec_token 参数';
+    $('listonly-field').style.display = 'none';
+  } else {
+    $('url-label').textContent = '账号主页链接';
+    $('url').placeholder = '粘贴主页链接 / 用户ID / App分享短链';
+    $('url-hint').textContent = '支持：主页链接、24 位用户 ID、App 分享短链';
+    $('listonly-field').style.display = '';
+  }
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  // 关键：先清掉上一个定时器，否则多次 toast 会累积多个 setTimeout，
+  // 相互覆盖导致提示不消失、且反复播放淡入动画（看起来在闪）。
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function setStatus(text, cls) {
+  const s = $('status');
+  s.textContent = text;
+  s.className = 'status-pill' + (cls ? ' ' + cls : '');
+}
+
+function setRunning(v) {
+  running = v;
+  $('btn-start').disabled = v;
+  $('btn-login').disabled = v;
+  $('btn-cancel').disabled = !v;
+}
+
+function fmtTime(ts) {
+  const d = new Date((ts || Date.now() / 1000) * 1000);
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+// —— 轮询：从 Python 拉取日志与状态（规避 evaluate_js 跨线程限制）——
+let logCursor = 0;
+let pollTimer = null;
+let lastQR = null;
+let lastFinishRunId = 0;      // 数字序号，用于判断是否为新一次任务结束
+let toastTimer = null;        // toast 的定时器句柄，避免累积
+
+async function poll() {
+  try {
+    const d = await window.pywebview.api.get_updates(logCursor);
+    if (d.logs && d.logs.length) {
+      d.logs.forEach(renderLog);
+      logCursor = d.total;
+    }
+    if (d.state) renderProgress(d.state);
+    if (d.qr && d.qr !== lastQR) {
+      lastQR = d.qr;
+      $('qr-img').src = 'data:image/png;base64,' + d.qr;
+      $('qr-mask').classList.add('show');
+    }
+    if (d.running !== undefined) syncRunning(d.running);
+    // 用自增数字比较（finish_run_id 是 number）。
+    // 注意：不能用 d.finish 对象比较 —— pywebview 每轮都重新序列化，
+    // 即使内容相同也是全新对象，JS 的 !== 按引用比较会永远为 true，
+    // 导致 handleFinish 每 400ms 被调用一次，提示反复弹出且闪烁。
+    const rid = d.finish_run_id || 0;
+    if (rid > 0 && d.finish && rid !== lastFinishRunId) {
+      lastFinishRunId = rid;
+      handleFinish(d.finish);
+    }
+  } catch (e) { /* pywebview 未就绪时忽略 */ }
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(poll, 400);
+}
+
+function renderLog(payload) {
+  if (logFilter !== 'all' && payload.level !== logFilter) return;
+  const log = $('log');
+  const empty = log.querySelector('.empty');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'line ' + payload.level;
+  div.innerHTML = '<span class="t">' + fmtTime(payload.ts) + '</span><span class="m"></span>';
+  div.querySelector('.m').textContent = payload.message;
+  const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  log.appendChild(div);
+  while (log.children.length > 1200) log.removeChild(log.firstChild);
+  if (stick) log.scrollTop = log.scrollHeight;
+}
+
+function renderProgress(st) {
+  const pct = Math.max(0, Math.min(100, st.percent || 0));
+  $('progress-bar').style.width = pct + '%';
+  $('progress-pct').textContent = pct + '%';
+  $('progress-detail').textContent = st.detail || '';
+}
+
+function syncRunning(v) {
+  if (v === running) return;
+  setRunning(v);
+  if (v) { setStatus('运行中', 'run'); }
+}
+
+function handleFinish(r) {
+  $('qr-mask').classList.remove('show');
+  const wasLoginOnly = lastAction === 'login';
+  if (r.error) {
+    setStatus('失败', 'err');
+    toast('任务失败：' + r.error);
+    return;
+  }
+  if (wasLoginOnly && !r.error) {
+    setStatus('已登录', 'ok');
+    toast('登录成功，登录态已保存');
+    return;
+  }
+  if (r.cancelled > 0) {
+    setStatus('已取消', '');
+    toast('任务已取消');
+    return;
+  }
+  if (r.failed > 0) {
+    setStatus('部分失败', 'err');
+    toast(`完成：成功 ${r.ok}，失败 ${r.failed}`);
+  } else {
+    setStatus('完成', 'ok');
+    toast(`全部完成：新下载 ${r.ok}，已存在 ${r.cached}`);
+  }
+}
+
+// —— 用户操作 ——
+async function startJob() {
+  const url = $('url').value.trim();
+  if (!url) { toast('请先填写链接'); return; }
+  const opts = collectOptions();
+  lastAction = 'start';
+  setRunning(true);
+  setStatus('运行中', 'run');
+  clearLog();
+  logCursor = 0;
+  lastQR = null;
+  // 不重置 lastFinishRunId：后端 run_id 单调递增，靠"rid 变大才处理"
+  // 自然去重。若这里重置为 0，在 start() 与后端 _reset 之间的极短窗口内
+  // 可能读到上一次的 finish_run_id，从而误触发旧提示。
+  const r = await window.pywebview.api.start(opts);
+  if (!r.ok) {
+    setRunning(false);
+    setStatus('就绪', '');
+    toast(r.error || '启动失败');
+  }
+}
+
+async function loginOnly() {
+  const opts = collectOptions();
+  opts.url = opts.url || 'login';
+  lastAction = 'login';
+  setRunning(true);
+  setStatus('登录中', 'run');
+  clearLog();
+  logCursor = 0;
+  lastQR = null;
+  // 同上：靠 run_id 单调递增去重，不重置游标
+  const r = await window.pywebview.api.login_only(opts);
+  if (!r.ok) {
+    setRunning(false);
+    setStatus('就绪', '');
+    toast(r.error || '启动失败');
+  }
+}
+
+async function cancelJob() {
+  const r = await window.pywebview.api.cancel();
+  if (r.ok) toast('正在取消…');
+}
+
+function collectOptions() {
+  return {
+    mode: currentMode,
+    url: $('url').value.trim(),
+    out: $('out').value.trim(),
+    list_only: $('list_only').checked,
+    concurrency: $('concurrency').value,
+    delay: $('delay').value,
+    retries: $('retries').value,
+    login_timeout: $('login_timeout').value,
+    cookie: $('cookie').value.trim(),
+  };
+}
+
+async function pickFolder() {
+  const p = await window.pywebview.api.pick_folder();
+  if (p) $('out').value = p;
+}
+
+async function openOutFolder() {
+  const r = await window.pywebview.api.open_folder($('out').value.trim());
+  if (!r.ok) toast(r.error || '打开目录失败');
+}
+
+function setFilter(btn, level) {
+  logFilter = level;
+  document.querySelectorAll('.filter-group button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function clearLog() {
+  $('log').innerHTML = '<div class="empty">日志将在这里实时显示</div>';
+}
+
+// —— 初始化 ——
+window.addEventListener('pywebviewready', async function () {
+  startPolling();
+  try {
+    env = await window.pywebview.api.get_env();
+    $('out').value = env.default_out || '';
+    const parts = [];
+    if (env.chrome) parts.push('Chrome');
+    if (env.edge) parts.push('Edge');
+    if (parts.length) {
+      $('channel-hint').textContent = '将使用本机 ' + parts.join(' / ') + '（免装内核）';
+    } else if (env.playwright_bundled) {
+      $('channel-hint').textContent = '将使用内置 playwright 内核';
+    } else {
+      $('channel-hint').textContent = '未检测到 Chrome / Edge，请先安装其中之一';
+    }
+    const st = await window.pywebview.api.check_login();
+    if (st.logged_in) setStatus('已登录', 'ok');
+  } catch (e) {
+    $('channel-hint').textContent = '环境检测失败';
+  }
+});
+</script>
+</body>
+</html>

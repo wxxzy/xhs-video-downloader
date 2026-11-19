@@ -1,0 +1,8 @@
+# 保证 shell 脚本在 mac/Linux 上签出时不会被加上 CRLF（否则 shebang 失效）
+*.sh text eol=lf
+
+# 源码与文档统一 LF，避免跨平台 diff 噪音
+*.py text eol=lf
+*.md text eol=lf
+*.spec text eol=lf
+*.html text eol=lf

@@ -1,0 +1,44 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ===== PyInstaller 产物（build/ 里的同名 exe 是陷阱，绝不是成品）=====
+build/
+dist/
+*.spec.bak
+
+# ===== 登录凭证与浏览器 profile（App-Bound Encryption，备份也用不了）=====
+.xhs_profile/
+.xhs_profile.*/
+cookie.txt
+*.cookie
+.env
+.env.*
+*.pem
+*.key
+
+# ===== 运行时数据（视频文件、临时文件、日志）=====
+downloads/
+*.part
+state.json
+live_run.log
+login_qr.png
+*.log
+
+# ===== 编辑器 / 系统文件 =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+~$*
+
+# ===== WorkBuddy 项目数据（非源码）=====
+.workbuddy/
+
+# ===== 与本工具无关的个人表格及临时引用 =====
+*.xlsx
+.*.ref/
